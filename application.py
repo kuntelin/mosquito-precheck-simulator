@@ -59,6 +59,7 @@ def post_check():
 @app.route('/container', methods=['GET'])
 def container():
     if request.method == 'GET':
+        'list container'
         try:
             client = get_blob_client()
         except Exception as e:

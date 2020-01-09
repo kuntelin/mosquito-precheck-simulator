@@ -59,13 +59,14 @@ def post_check():
 @app.route('/container', methods=['GET'])
 def container():
     if request.method == 'GET':
-        'list container'
         try:
             client = get_blob_client()
         except Exception as e:
             return e.args[0]
 
-        return jsonify(client.list_containers())
+        container_list = [x['name'] for x in client.list_containers()]
+        
+        return jsonify(container_list)
 
 
 if __name__ == '__main__':

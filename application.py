@@ -1,4 +1,5 @@
 import os
+import tempfile
 from datetime import datetime
 from flask import Flask, request, abort, jsonify
 
@@ -56,17 +57,44 @@ def post_check():
     })
 
 
-@app.route('/container', methods=['GET'])
-def container():
+@app.route('/trigger_blob_create_event', methods=['GET'])
+def trigger_blob_create_event():
     if request.method == 'GET':
         try:
             client = get_blob_client()
         except Exception as e:
             return e.args[0]
 
-        container_list = [x['name'] for x in client.list_containers()]
-        
-        return jsonify(container_list)
+        container = request.args.get('container', None)
+        counter = request.args.get('counter', None)
+
+        if not container or not counter:
+            return 'container and counter must be specified'
+
+        try:
+            counter = int(counter)
+        except TypeError as _deprecated:
+            return 'counter mus be integer'
+
+        # create container for this operation
+        try:
+            container_client = client.create_container(name=container)
+        except Exception as e:
+            return "something wrong with create container: {}".format(e)
+
+        # create temp file for upload
+        tmpfile = tempfile.NamedTemporaryFile()
+        tmpname = tmpfile.name.split('/').pop(-1)
+
+        # upload files with counter times
+        for index in range(counter):
+            blob_client = client.get_blob_client(container=container, blob="{}_{}".format(tmpname, index))
+            blob_client.upload_blob(tmpfile)
+
+        return jsonify({
+            'container': container,
+            'blob_list': sorted([x.name for x in container_client.list_blobs()]),
+        })
 
 
 if __name__ == '__main__':

@@ -1,2 +1,3 @@
-.azure/*
-
+*.pyc
+.azure/
+__pycache__/

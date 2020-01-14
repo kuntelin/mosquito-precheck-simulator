@@ -14,7 +14,7 @@ def version():
 
 def blob_connection_string():
     try:
-        return os.environ['BLOB_CONNECTION_STRING']
+        return os.environ['AZURE_STORAGE_CONNECTION_STRING']
     except KeyError as _deprecated:
         return 'NOT SET'
 

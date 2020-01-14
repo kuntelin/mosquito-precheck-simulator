@@ -31,7 +31,7 @@ def hello():
 Hello from Alex!
 
 VER: {}
-BLOB_CONNECTION_STRING: {}
+CONNECTION_STRING: {}
 """
 
     return hello_message.format(version(), blob_connection_string()[:30])

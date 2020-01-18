@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 from datetime import datetime
 from flask import Flask, request, abort, jsonify
 
@@ -12,7 +13,7 @@ def version():
     return datetime.utcfromtimestamp(stat.st_mtime).strftime('%Y%m%d.%H%M')
 
 
-def blob_connection_string():
+def storage_connection_string():
     try:
         return os.environ['AZURE_STORAGE_CONNECTION_STRING']
     except KeyError as _deprecated:
@@ -22,22 +23,19 @@ def blob_connection_string():
 def get_blob_client():
     from azure.storage.blob import BlobServiceClient
 
-    return BlobServiceClient.from_connection_string(blob_connection_string())
+    return BlobServiceClient.from_connection_string(storage_connection_string())
 
 
 @app.route('/')
 def hello():
-    hello_message = """
-Hello from Alex!
-
-VER: {}
-CONNECTION_STRING: {}
-"""
-
-    return hello_message.format(version(), blob_connection_string()[:30])
+    return jsonify({
+        'version': version(),
+        'azure_storage_connect_string': storage_connection_string()[:30],
+        'message': 'Hello from Alex!',
+    })
 
 
-@app.route('/post_check', methods=['POST'])
+@app.route('/post_image', methods=['POST'])
 def post_check():
     # return jsonify(request.form.to_dict(flat=False))
 
@@ -57,8 +55,18 @@ def post_check():
     })
 
 
-@app.route('/trigger_blob_create_event', methods=['GET'])
-def trigger_blob_create_event():
+@app.route('/create_blobs_on_container', methods=['GET'])
+def create_blobs_on_container():
+    """
+    @:param container: container name
+    @:type container: str
+    @:param counter: how many blobs to create
+    @:type counter: integer
+    @:param interval: interval between blob creation
+    @:type interval: float
+    :return:
+    """
+
     if request.method == 'GET':
         try:
             client = get_blob_client()
@@ -67,6 +75,7 @@ def trigger_blob_create_event():
 
         container = request.args.get('container', None)
         counter = request.args.get('counter', None)
+        interval = request.args.get('interval', None)
 
         if not container or not counter:
             return 'container and counter must be specified'
@@ -74,13 +83,18 @@ def trigger_blob_create_event():
         try:
             counter = int(counter)
         except TypeError as _deprecated:
-            return 'counter mus be integer'
+            return 'counter must be integer'
+
+        try:
+            interval = float(interval)
+        except TypeError as _deprecated:
+            return 'interval must be float'
 
         # create container for this operation
         try:
             container_client = client.create_container(name=container)
         except Exception as e:
-            return "something wrong with create container: {}".format(e)
+            return "something wrong with get container client: {}".format(e)
 
         # create temp file for upload
         tmpfile = tempfile.NamedTemporaryFile()
@@ -90,6 +104,7 @@ def trigger_blob_create_event():
         for index in range(counter):
             blob_client = client.get_blob_client(container=container, blob="{}_{}".format(tmpname, index))
             blob_client.upload_blob(tmpfile)
+            time.sleep(interval)
 
         return jsonify({
             'container': container,

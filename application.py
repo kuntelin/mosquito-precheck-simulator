@@ -63,7 +63,9 @@ def create_blobs_on_container():
     @:param counter: how many blobs to create
     @:type counter: integer
     @:param interval: interval between blob creation
-    @:type interval: float
+    @:type interval: integer
+    @:param wait: how many seconds to wait on each interval
+    @:type wait: float
     :return:
     """
 
@@ -76,6 +78,7 @@ def create_blobs_on_container():
         container = request.args.get('container', None)
         counter = request.args.get('counter', None)
         interval = request.args.get('interval', None)
+        wait = request.args.get('wait', None)
 
         if not container or not counter:
             return 'container and counter must be specified'
@@ -85,10 +88,20 @@ def create_blobs_on_container():
         except TypeError as _deprecated:
             return 'counter must be integer'
 
-        try:
-            interval = float(interval)
-        except TypeError as _deprecated:
-            return 'interval must be float'
+        if interval:
+            try:
+                interval = int(interval)
+            except TypeError as _deprecated:
+                return 'interval must be integer'
+
+            if interval == 0:
+                return 'interval can not be 0'
+
+        if wait:
+            try:
+                wait = float(wait)
+            except TypeError as _deprecated:
+                return 'wait must be float'
 
         # create container for this operation
         try:
@@ -102,9 +115,13 @@ def create_blobs_on_container():
 
         # upload files with counter times
         for index in range(counter):
+            # wait few seconds on each interval
+            if interval is not None and counter % interval == 0:
+                if wait:
+                    time.sleep(wait)
+
             blob_client = client.get_blob_client(container=container, blob="{}_{}".format(tmpname, index))
             blob_client.upload_blob(tmpfile)
-            time.sleep(interval)
 
         return jsonify({
             'container': container,
